@@ -89,6 +89,7 @@ class DQNAgent(LearningAgent):
         if not hasattr(self, 'memory_counter'):
             self.memory_counter = 0
 
+        s, s_ = s['features'], s_['features']
         transition = np.hstack((s, [a, r], s_))
 
         # replace the old memory with new memory
@@ -99,6 +100,7 @@ class DQNAgent(LearningAgent):
 
     def choose_action(self, observation):
         # to have batch dimension when feed into tf placeholder
+        observation= observation['features']
         observation = observation[np.newaxis, :]
 
         if np.random.uniform() < self.epsilon:
