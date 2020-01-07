@@ -115,6 +115,7 @@ class DeepQNetwork:
         if not hasattr(self, 'memory_counter'):
             self.memory_counter = 0
 
+        s, s_ = s['features'], s_['features']
         transition = np.hstack((s, [a, r], s_))
 
         # replace the old memory with new memory
@@ -124,6 +125,7 @@ class DeepQNetwork:
         self.memory_counter += 1
 
     def choose_action(self, observation):
+        observation = observation['features']
         # to have batch dimension when feed into tf placeholder
         observation = observation[np.newaxis, :]
 

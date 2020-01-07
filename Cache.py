@@ -1,5 +1,5 @@
 
-import sys, os
+import sys, os, random
 import numpy as np
 import pandas as pd
 
@@ -27,7 +27,23 @@ class Cache(object):
             if not boot: df = df.loc[df['boot/exec'] == 1, :]
             self.requests += list(df['blocksector'])
             self.operations += list(df['read/write'])
+
+        self.requests = list(np.random.zipf(1.3, 10000).astype(np.int32))
+        # self.requests = list(range(cache_size + 1)) * 1000
+        self.operations = [0] * len(self.requests)
+
         self.cur_index = -1
+
+        hist = {}
+        for r in self.requests:
+            if r not in hist:
+                hist[r] = self.requests.count(r)
+        rs = list(hist.keys())
+        rs.sort(key=lambda r: hist[r], reverse=True)
+        print("-----------------------")
+        c = np.sum(np.array([hist[r] for r in rs[:cache_size]]))
+        print(rs[:cache_size], np.array([hist[r] for r in rs[:cache_size]]))
+        print(c, len(self.requests), c / len(self.requests))
 
         if len(self.requests) <= cache_size:
             raise ValueError("The count of requests are too small. Try larger one.")
@@ -52,8 +68,7 @@ class Cache(object):
 
     # Return miss rate
     def miss_rate(self):
-        print(self.miss_count)
-        print(self.total_count)
+        print("%d / %d = %f" % (self.miss_count, self.total_count, self.miss_count / self.total_count))
         return self.miss_count / self.total_count
 
     def reset(self):
@@ -71,6 +86,7 @@ class Cache(object):
         while slot_id < self.cache_size and self.cur_index < len(self.requests):
             request = self._current_request()
             if request not in self.slots:
+                self.miss_count += 1
                 self.slots[slot_id] = request
                 self._hit_cache(slot_id)
                 slot_id += 1
@@ -94,10 +110,14 @@ class Cache(object):
     def step(self, action):
         if self.hasDone():
             raise ValueError("Simulation has finished, use reset() to restart simulation.")
+
         if not self.allow_skip:
             action += 1
+
         if action < 0 or action > len(self.slots):
             raise ValueError("Invalid action %d taken." % action)
+
+        # print(action)
 
         # Evict slot of (aciton - 1). action == 0 means skipping eviction.
         if action != 0:
@@ -109,6 +129,8 @@ class Cache(object):
             self.evict_count += 1
         else:
             skip_resource = self._current_request()
+
+        # self.display()
 
         last_index = self.cur_index
 
@@ -136,9 +158,13 @@ class Cache(object):
                 reward -= 100 / (hit_count + 1) + 10
         # Else no evction happens at last decision epoch 
         else:
+            # Compute the reward of skipping eviction
+            reward += 0.3 * reward
             # Compute the penalty of skipping eviction
             if miss_resource == skip_resource:
                 reward -= 100 / (hit_count + 1) + 10
+
+        # reward = random.random()
 
         return observation, reward
 
@@ -193,8 +219,8 @@ class Cache(object):
         ], axis=0)
 
         return dict(features=features
-            , cache_state=self.slots.copy()
-            , last_used_times=self.used_times.copy()
-            , access_bits=self.access_bits.copy()
-            , dirty_bits=self.dirty_bits.copy()
+            , cache_state=self.slots
+            , last_used_times=self.used_times
+            , access_bits=self.access_bits
+            , dirty_bits=self.dirty_bits
         )
