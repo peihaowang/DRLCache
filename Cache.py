@@ -29,21 +29,23 @@ class Cache(object):
             self.operations += list(df['read/write'])
 
         self.requests = list(np.random.zipf(1.3, 10000).astype(np.int32))
-        # self.requests = list(range(cache_size + 1)) * 1000
+        # self.requests += list(range(cache_size + 1)) * 1000
         self.operations = [0] * len(self.requests)
 
         self.cur_index = -1
 
-        hist = {}
-        for r in self.requests:
-            if r not in hist:
-                hist[r] = self.requests.count(r)
-        rs = list(hist.keys())
-        rs.sort(key=lambda r: hist[r], reverse=True)
-        print("-----------------------")
-        c = np.sum(np.array([hist[r] for r in rs[:cache_size]]))
-        print(rs[:cache_size], np.array([hist[r] for r in rs[:cache_size]]))
-        print(c, len(self.requests), c / len(self.requests))
+        show_stat = False
+        if show_stat:
+            hist = {}
+            for r in self.requests:
+                if r not in hist:
+                    hist[r] = self.requests.count(r)
+            rs = list(hist.keys())
+            rs.sort(key=lambda r: hist[r], reverse=True)
+            print("-----------------------")
+            c = np.sum(np.array([hist[r] for r in rs[:cache_size]]))
+            print(rs[:cache_size], np.array([hist[r] for r in rs[:cache_size]]))
+            print(c, len(self.requests), c / len(self.requests))
 
         if len(self.requests) <= cache_size:
             raise ValueError("The count of requests are too small. Try larger one.")
@@ -60,7 +62,7 @@ class Cache(object):
 
         # Action & feature information
         self.n_actions = self.cache_size + 1 if allow_skip else self.cache_size
-        self.n_features = (self.cache_size + 1) * len(Cache.FEAT_TREMS)
+        self.n_features = (self.cache_size + 1) * len(Cache.FEAT_TREMS) # + self.cache_size
 
     # Display the current cache state
     def display(self):
@@ -213,14 +215,21 @@ class Cache(object):
         # [Freq, F1, F2, ..., Fc] where Fi = [Rs, Rm, Rl]
         # i.e. the request times in short/middle/long term for each
         # cached resource and the currently requested resource.
-        features = np.concatenate([
-            np.array([self._elapsed_requests(t, self._current_request()) for t in Cache.FEAT_TREMS])
-            , np.array([self._elapsed_requests(t, rc) for rc in self.slots for t in Cache.FEAT_TREMS])
-        ], axis=0)
+        features = [self._elapsed_requests(t, self._current_request()) for t in Cache.FEAT_TREMS]
+        for slot_id, rc in enumerate(self.slots):
+            for t in Cache.FEAT_TREMS:
+                features.append(self._elapsed_requests(t, rc))
+            # features.append(self.used_times[slot_id])
+        # features = np.concatenate([
+        #     np.array([self._elapsed_requests(t, self._current_request()) for t in Cache.FEAT_TREMS])
+        #     , np.array([self._elapsed_requests(t, rc) for rc in self.slots for t in Cache.FEAT_TREMS])
+        #     , np.array([self.used_times[i] for i in range(self.cache_size)])
+        # ], axis=0)
+        features = np.array(features)
 
         return dict(features=features
-            , cache_state=self.slots
+            # , cache_state=self.slots
             , last_used_times=self.used_times
-            , access_bits=self.access_bits
-            , dirty_bits=self.dirty_bits
+            # , access_bits=self.access_bits
+            # , dirty_bits=self.dirty_bits
         )
