@@ -2,6 +2,8 @@ import os
 import csv
 import pandas
 import numpy as np
+import random
+import matplotlib.pyplot as plt
 
 # cacheline
 class cacheline:
@@ -193,18 +195,19 @@ class cache():
 			return
 
 # file directory 
-fd = r'/home/rio/Desktop/AI/data'
+fd = r'C:\\Users\\Rio汪\\Desktop\\program\\ReinforcementCache\\backup\\data2.0\\filesys\\extended'
 
 # create a list of all needed files in fd
 def eachfile(fd):
 	outputfile = []
 	path = os.listdir(fd)
 
-	headers = ["TESTNAME","FIFO","LRU","MRU","CLOCK","RANDOM"]
-	result = open("result.csv", 'w', newline = '')
-	result_csv = csv.writer(result)
-	result_csv.writerow(headers)
-
+	# headers = ["TESTNAME","FIFO","LRU","MRU","CLOCK","RANDOM"]
+	# result = open("result.csv", 'w', newline = '')
+	# result_csv = csv.writer(result)
+	# result_csv.writerow(headers)
+	l = 3000 * [0]
+	counter = 0
 	for file in path:
 		# add the file to the path
 		newdir = os.path.join(fd,file)
@@ -212,18 +215,38 @@ def eachfile(fd):
 		# choose the file named ".csv" 
 		if os.path.splitext(newdir)[1] == ".csv":
 			testname = os.path.splitext(os.path.split(newdir)[1])[0]
-			df = pandas.read_csv(newdir)
-
-			test1,test2,test3,test4,test5 = cache(64),cache(64),cache(64),cache(64),cache(64)
+			df = pandas.read_csv(newdir,header = 0)
 
 			for i in df["blocksector"]:
-				test1.fifo(i)
-				test2.lru(i)
-				test3.mru(i)
-				test4.clk(i)
-				test5.rdm(i)
+				l[i] += 1
+				counter += 1
 
-			result_csv.writerow([testname,test1.get_missrate(),test2.get_missrate(),test3.get_missrate(),test4.get_missrate(),test5.get_missrate()])
+			# test1,test2,test3,test4,test5 = cache(100),cache(100),cache(100),cache(100),cache(100)
+
+			# for i in df["blocksector"]:
+			# 	test1.fifo(i)
+			# 	test2.lru(i)
+			# 	test3.mru(i)
+			# 	test4.clk(i)
+			# 	test5.rdm(i)
+
+			# result_csv.writerow([testname,test1.get_missrate(),test2.get_missrate(),test3.get_missrate(),test4.get_missrate(),test5.get_missrate()])
+			#l = [testname,test1.get_missrate(),test2.get_missrate(),test3.get_missrate(),test4.get_missrate(),test5.get_missrate()]
 			print(testname + " is finished")
+	x = range(3000)
+	l.sort(reverse=True)
+	print(sum(l[:10])/counter)
+	plt.plot(x,l)
+	plt.show()
+
 
 eachfile(fd)
+# x = [1,5,25,50,150,300,500]
+# for j in x:
+# 	test = cache(j)
+# 	zipf = np.random.zipf(1.3,10000)
+# 	for i in zipf:
+# 		if i < 5000:
+# 			pass
+# 		test.lru(i)
+# 	print("when size = " + str(j) + " hit rate is " + str(1-test.get_missrate()))
