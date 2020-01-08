@@ -20,8 +20,8 @@ if __name__ == "__main__":
         batch_size=128
         # output_graph=True
     )
-    # RL = RandomAgent(env.n_actions)
-    RL = LRUAgent(env.n_actions)
+    RL = RandomAgent(env.n_actions)
+    # RL = LRUAgent(env.n_actions)
     step = 0
     for episode in range(100):
         # initial observation
