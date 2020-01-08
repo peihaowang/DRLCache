@@ -3,6 +3,35 @@ import sys, os, random
 import numpy as np
 import pandas as pd
 
+class Observation(object):
+
+    def __init__(self, cache):
+        self.cache = cache
+        self.features = None
+        self.magic = cache.cur_index
+
+    def __getitem__(self, key):
+        if self.cache.cur_index != self.magic:
+            raise ValueError("Current observation not available." )
+
+        if key == "features":
+            if self.features is None:
+                self.features = self.cache._get_features()
+            return self.features
+        elif key == "cache_state":
+            return self.cache.slots
+        elif key == "cached_times":
+            return self.cache.cached_times
+        elif key == "last_used_times":
+            return self.cache.used_times
+        elif key == "access_bits":
+            return self.cache.access_bits
+        elif key == "dirty_bits":
+            return self.cache.dirty_bits
+        else:
+            raise ValueError("Cannot provide specified observation:", key)
+
+
 class Cache(object):
 
     # Elasped terms - short, middle and long
@@ -28,9 +57,14 @@ class Cache(object):
             self.requests += list(df['blocksector'])
             self.operations += list(df['read/write'])
 
-        self.requests = list(np.random.zipf(1.3, 10000).astype(np.int32))
-        # self.requests += list(range(cache_size + 1)) * 1000
-        self.operations = [0] * len(self.requests)
+        # self.requests = np.random.zipf(1.3, 50000).astype(np.int32)
+        # self.requests = self.requests[self.requests < 5000]
+        # self.requests = list(self.requests)
+        # # self.requests += list(range(cache_size + 1)) * 1000
+        # self.operations = [0] * len(self.requests)
+
+        # self.requests = [1,2,3,4,5,6,5,4,3,2,1]
+        # self.operations = [0] * len(self.requests)
 
         self.cur_index = -1
 
@@ -57,12 +91,13 @@ class Cache(object):
         self.cache_size = cache_size
         self.slots = [-1] * self.cache_size
         self.used_times = [-1] * self.cache_size
+        self.cached_times = [-1] * self.cache_size
         self.access_bits = [False] * self.cache_size
         self.dirty_bits = [False] * self.cache_size
 
         # Action & feature information
         self.n_actions = self.cache_size + 1 if allow_skip else self.cache_size
-        self.n_features = (self.cache_size + 1) * len(Cache.FEAT_TREMS) # + self.cache_size
+        self.n_features = (self.cache_size + 1) * len(Cache.FEAT_TREMS)
 
     # Display the current cache state
     def display(self):
@@ -90,6 +125,7 @@ class Cache(object):
             if request not in self.slots:
                 self.miss_count += 1
                 self.slots[slot_id] = request
+                self.cached_times[slot_id] = self.cur_index
                 self._hit_cache(slot_id)
                 slot_id += 1
             self.total_count += 1
@@ -127,25 +163,35 @@ class Cache(object):
             in_resource = self._current_request()
             slot_id = action - 1
             self.slots[slot_id] = in_resource
+            self.cached_times[slot_id] = self.cur_index
             self._hit_cache(slot_id)
             self.evict_count += 1
         else:
             skip_resource = self._current_request()
-
-        # self.display()
 
         last_index = self.cur_index
 
         # Proceed kernel and resource accesses until next miss.
         self._run_until_miss()
 
-        # Get observatio.
+        # Get observation.
         observation = self._get_observation()
 
         # Compute reward: R = hit reward + miss penalty
         reward = 0.0
 
-        # Total count of hit since last decision epoch
+        # # Total count of hit since last decision epoch
+        # hit_count = self.cur_index - last_index - 1
+        # if hit_count != 0: reward += 1.0
+
+        # start = last_index
+        # end = last_index + 100
+        # if end > len(self.requests): end = len(self.requests)
+        # lt_hit = 0
+        # for rc in self.slots:
+        #     lt_hit += self.requests[start : end].count(rc)
+        # reward += 5 * lt_hit / (end - start)
+
         hit_count = self.cur_index - last_index - 1
         reward += hit_count
 
@@ -157,16 +203,14 @@ class Cache(object):
             reward += 10 * past_requests.count(in_resource)
             # Compute the swap-out penalty
             if miss_resource == out_resource:
-                reward -= 100 / (hit_count + 1) + 10
+                reward -= 100 / (hit_count + 1) + 5
         # Else no evction happens at last decision epoch 
         else:
             # Compute the reward of skipping eviction
             reward += 0.3 * reward
             # Compute the penalty of skipping eviction
             if miss_resource == skip_resource:
-                reward -= 100 / (hit_count + 1) + 10
-
-        # reward = random.random()
+                reward -= 100 / (hit_count + 1) + 5
 
         return observation, reward
 
@@ -202,7 +246,7 @@ class Cache(object):
         # Record last used time
         self.used_times[slot_id] = self.cur_index
 
-    # The number of requests on rc_id among last term requests.
+    # The number of requests on rc_id among last `term` requests.
     def _elapsed_requests(self, term, rc_id):
         start = self.cur_index - term + 1
         if start < 0: start = 0
@@ -211,25 +255,31 @@ class Cache(object):
         return self.requests[start : end].count(rc_id)
 
     # Return the observation features for reinforcement agent
-    def _get_observation(self):
+    def _get_features(self):
         # [Freq, F1, F2, ..., Fc] where Fi = [Rs, Rm, Rl]
         # i.e. the request times in short/middle/long term for each
         # cached resource and the currently requested resource.
-        features = [self._elapsed_requests(t, self._current_request()) for t in Cache.FEAT_TREMS]
-        for slot_id, rc in enumerate(self.slots):
-            for t in Cache.FEAT_TREMS:
-                features.append(self._elapsed_requests(t, rc))
-            # features.append(self.used_times[slot_id])
-        # features = np.concatenate([
-        #     np.array([self._elapsed_requests(t, self._current_request()) for t in Cache.FEAT_TREMS])
-        #     , np.array([self._elapsed_requests(t, rc) for rc in self.slots for t in Cache.FEAT_TREMS])
-        #     , np.array([self.used_times[i] for i in range(self.cache_size)])
-        # ], axis=0)
-        features = np.array(features)
 
-        return dict(features=features
-            # , cache_state=self.slots
-            , last_used_times=self.used_times
-            # , access_bits=self.access_bits
-            # , dirty_bits=self.dirty_bits
+        # features = [self._elapsed_requests(t, self._current_request()) for t in Cache.FEAT_TREMS]
+        # for slot_id, rc in enumerate(self.slots):
+        #     for t in Cache.FEAT_TREMS:
+        #         features.append(self._elapsed_requests(t, rc))
+        #     features.append(self.used_times[slot_id])
+        # features = np.array(features)
+
+        features = np.concatenate([
+            np.array([self._elapsed_requests(t, self._current_request()) for t in Cache.FEAT_TREMS])
+            , np.array([self._elapsed_requests(t, rc) for rc in self.slots for t in Cache.FEAT_TREMS])
+            # , np.array([self.used_times[i] for i in range(self.cache_size)])
+        ], axis=0)
+
+        return features
+
+    def _get_observation(self):
+        return dict(features=self._get_features(),
+            cache_state=self.slots.copy(),
+            cached_times=self.cached_times.copy(),
+            last_used_times=self.used_times.copy(),
+            access_bits=self.access_bits.copy(),
+            dirty_bits=self.dirty_bits.copy()
         )
