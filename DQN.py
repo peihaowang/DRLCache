@@ -72,8 +72,8 @@ class DeepQNetwork:
         self.q_target = tf.placeholder(tf.float32, [None, self.n_actions], name='Q_target')  # for calculating loss
         with tf.variable_scope('eval_net'):
             # c_names(collections_names) are the collections to store variables
-            c_names, n_l1, w_initializer, b_initializer = \
-                ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES], 10, \
+            c_names, n_l1, n_l2, w_initializer, b_initializer = \
+                ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES], 64, 32, \
                 tf.random_normal_initializer(0., 0.3), tf.constant_initializer(0.1)  # config of layers
 
             # first layer. collections is used later when assign to target net
@@ -84,9 +84,15 @@ class DeepQNetwork:
 
             # second layer. collections is used later when assign to target net
             with tf.variable_scope('l2'):
-                w2 = tf.get_variable('w2', [n_l1, self.n_actions], initializer=w_initializer, collections=c_names)
-                b2 = tf.get_variable('b2', [1, self.n_actions], initializer=b_initializer, collections=c_names)
-                self.q_eval = tf.matmul(l1, w2) + b2
+                w2 = tf.get_variable('w2', [n_l1, n_l2], initializer=w_initializer, collections=c_names)
+                b2 = tf.get_variable('b2', [1, n_l2], initializer=b_initializer, collections=c_names)
+                l2 = tf.nn.relu(tf.matmul(l1, w2) + b2)
+
+            # output layer. collections is used later when assign to target net
+            with tf.variable_scope('l3'):
+                w3 = tf.get_variable('w3', [n_l2, self.n_actions], initializer=w_initializer, collections=c_names)
+                b3 = tf.get_variable('b3', [1, self.n_actions], initializer=b_initializer, collections=c_names)
+                self.q_eval = tf.matmul(l2, w3) + b3
 
         with tf.variable_scope('loss'):
             self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
@@ -107,14 +113,21 @@ class DeepQNetwork:
 
             # second layer. collections is used later when assign to target net
             with tf.variable_scope('l2'):
-                w2 = tf.get_variable('w2', [n_l1, self.n_actions], initializer=w_initializer, collections=c_names)
-                b2 = tf.get_variable('b2', [1, self.n_actions], initializer=b_initializer, collections=c_names)
-                self.q_next = tf.matmul(l1, w2) + b2
+                w2 = tf.get_variable('w2', [n_l1, n_l2], initializer=w_initializer, collections=c_names)
+                b2 = tf.get_variable('b2', [1, n_l2], initializer=b_initializer, collections=c_names)
+                l2 = tf.nn.relu(tf.matmul(l1, w2) + b2)
+
+            # output layer. collections is used later when assign to target net
+            with tf.variable_scope('32'):
+                w3 = tf.get_variable('w2', [n_l2, self.n_actions], initializer=w_initializer, collections=c_names)
+                b3 = tf.get_variable('b2', [1, self.n_actions], initializer=b_initializer, collections=c_names)
+                self.q_next = tf.matmul(l2, w3) + b3
 
     def store_transition(self, s, a, r, s_):
         if not hasattr(self, 'memory_counter'):
             self.memory_counter = 0
 
+        s, s_ = s['features'], s_['features']
         transition = np.hstack((s, [a, r], s_))
 
         # replace the old memory with new memory
@@ -124,6 +137,7 @@ class DeepQNetwork:
         self.memory_counter += 1
 
     def choose_action(self, observation):
+        observation = observation['features']
         # to have batch dimension when feed into tf placeholder
         observation = observation[np.newaxis, :]
 
@@ -139,7 +153,7 @@ class DeepQNetwork:
         # check to replace target parameters
         if self.learn_step_counter % self.replace_target_iter == 0:
             self.sess.run(self.replace_target_op)
-            print('\ntarget_params_replaced\n')
+            # print('\ntarget_params_replaced\n')
 
         # sample batch memory from all memory
         if self.memory_counter > self.memory_size:
