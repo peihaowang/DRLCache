@@ -6,6 +6,8 @@ We adopt a learning-based method to cache replacement strategy, aiming to improv
 
 In this work, in addition to the implementation code, we also prepared a piece of [slides](https://peihaowang.github.io/archive/Wang_DRL_Cache_2020_slides.pdf) and detailed [report](https://peihaowang.github.io/archive/Wang_DRL_Cache_2020_report.pdf).
 
+![teaser](teaser.png)
+
 ## Code
 
 To run the code for experiment, you should have at least the following dependencies installed. We tested our code using Python 3.6.
