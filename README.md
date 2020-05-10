@@ -1,4 +1,4 @@
-# Deep Reinforcement Learning-Based Caching
+# Deep Reinforcement Learning-Based Cache Replacement Policy
 
 ## Introduction
 
@@ -35,10 +35,11 @@ The real data are collected via [Pintos](https://web.stanford.edu/class/cs140/pr
 
 ## Acknowledgment
 
-I sincerely appreciate the great efforts paid by the two co-workers as below. We three equally contribute to this project.
+The code for DQN was adapted from [Morvan Zhou's tutorials](https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow).
+
+I also sincerely appreciate the great efforts paid by the two co-workers below. We three equally contribute to this project.
 
 1. [Yuehao Wang](https://github.com/yuehaowang)
 2. [Rui Wang](https://github.com/RioReal)
 
 Although we proposed this topic as an open question for CS181 final course project, we took it as serious scientific research in the intersected area of artificial intelligence and computer systems.
-
