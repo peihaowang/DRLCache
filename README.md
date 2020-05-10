@@ -1,4 +1,4 @@
-# Deep Reinforcement Learning-Based Replacement Strategy for Content Caching
+# Deep Reinforcement Learning-Based Caching
 
 ## Introduction
 
