@@ -182,16 +182,19 @@ class DQNPrioritizedReplay:
         self.cost_his = []
 
     def _build_net(self):
-        def build_layers(s, c_names, n_l1, w_initializer, b_initializer, trainable):
-            with tf.variable_scope('l1'):
-                w1 = tf.get_variable('w1', [self.n_features, n_l1], initializer=w_initializer, collections=c_names, trainable=trainable)
-                b1 = tf.get_variable('b1', [1, n_l1], initializer=b_initializer, collections=c_names,  trainable=trainable)
-                l1 = tf.nn.relu(tf.matmul(s, w1) + b1)
+        def build_layers(s, c_names, n_ls, w_initializer, b_initializer, trainable):
+            in_channel = self.n_features
+            out = s
+            for i, n_l in enumerate(n_ls):
+                with tf.variable_scope('l%d' % (i+1)):
+                    w = tf.get_variable('w%d' % (i+1), [in_channel, n_l], initializer=w_initializer, collections=c_names, trainable=trainable)
+                    b = tf.get_variable('b%d' % (i+1), [1, n_l], initializer=b_initializer, collections=c_names,  trainable=trainable)
+                    s = tf.nn.relu(tf.matmul(s, w) + b)
+                    in_channel = n_l
+            w = tf.get_variable('w_out', [in_channel, self.n_actions], initializer=w_initializer, collections=c_names,  trainable=trainable)
+            b = tf.get_variable('b_out', [1, self.n_actions], initializer=b_initializer, collections=c_names, trainable=trainable)
+            out = tf.matmul(s, w) + b
 
-            with tf.variable_scope('l2'):
-                w2 = tf.get_variable('w2', [n_l1, self.n_actions], initializer=w_initializer, collections=c_names,  trainable=trainable)
-                b2 = tf.get_variable('b2', [1, self.n_actions], initializer=b_initializer, collections=c_names,  trainable=trainable)
-                out = tf.matmul(l1, w2) + b2
             return out
 
         # ------------------ build evaluate_net ------------------
@@ -200,11 +203,11 @@ class DQNPrioritizedReplay:
         if self.prioritized:
             self.ISWeights = tf.placeholder(tf.float32, [None, 1], name='IS_weights')
         with tf.variable_scope('eval_net'):
-            c_names, n_l1, w_initializer, b_initializer = \
-                ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES], 20, \
+            c_names, n_ls, w_initializer, b_initializer = \
+                ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES], [256], \
                 tf.random_normal_initializer(0., 0.3), tf.constant_initializer(0.1)  # config of layers
 
-            self.q_eval = build_layers(self.s, c_names, n_l1, w_initializer, b_initializer, True)
+            self.q_eval = build_layers(self.s, c_names, n_ls, w_initializer, b_initializer, True)
 
         with tf.variable_scope('loss'):
             if self.prioritized:
@@ -219,7 +222,7 @@ class DQNPrioritizedReplay:
         self.s_ = tf.placeholder(tf.float32, [None, self.n_features], name='s_')    # input
         with tf.variable_scope('target_net'):
             c_names = ['target_net_params', tf.GraphKeys.GLOBAL_VARIABLES]
-            self.q_next = build_layers(self.s_, c_names, n_l1, w_initializer, b_initializer, False)
+            self.q_next = build_layers(self.s_, c_names, n_ls, w_initializer, b_initializer, False)
 
     def store_transition(self, s, a, r, s_):
         s, s_ = s['features'], s_['features']
@@ -235,13 +238,19 @@ class DQNPrioritizedReplay:
             self.memory_counter += 1
 
     def choose_action(self, observation):
-        observation= observation['features']
-        observation = observation[np.newaxis, :]
         if np.random.uniform() < self.epsilon:
+            observation= observation['features']
+            observation = observation[np.newaxis, :]
             actions_value = self.sess.run(self.q_eval, feed_dict={self.s: observation})
             action = np.argmax(actions_value)
         else:
-            action = np.random.randint(0, self.n_actions)
+            
+#             action = np.random.randint(0, self.n_actions)
+            used_times = np.array(observation['last_used_times'])
+            idx = np.argmin(used_times)
+            if idx < 0 or idx > self.n_actions:
+                raise ValueError("RandomAgent: Error index %d" % min_idx)
+            action = idx
         return action
 
     def learn(self):

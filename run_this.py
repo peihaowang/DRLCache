@@ -4,7 +4,7 @@ from ReflexAgent import RandomAgent, LRUAgent
 
 if __name__ == "__main__":
     # cache
-    env = Cache(["data2.0/zipf.csv"], 25, allow_skip=False)
+    env = Cache(["data2.0/zipf2.csv"], 50, allow_skip=False)
     # "data2.0/filesys/base/syn-read.csv", "data2.0/filesys/extended/dir-vine.csv"
     # env = Cache(["data2.0/filesys/base/syn-read.csv"], 5, allow_skip=False)
     # env = Cache(["data2.0/filesys/extended/dir-mk-tree.csv"], 5, allow_skip=False)
@@ -20,7 +20,7 @@ if __name__ == "__main__":
         batch_size=128
         # output_graph=True
     )
-    # RL = RandomAgent(env.n_actions)
+#     RL = RandomAgent(env.n_actions)
     RL = LRUAgent(env.n_actions)
     step = 0
     for episode in range(100):
@@ -48,6 +48,9 @@ if __name__ == "__main__":
 
             # swap observation
             observation = observation_
+            
+            if step % 1000 == 0:
+                mr = env.miss_rate()
 
             step += 1
         print(env.miss_rate())

@@ -27,3 +27,34 @@ class LRUAgent:
         pass
     def learn(self):
         pass
+
+class MRUAgent:
+    def __init__(self, n_actions):
+        self.n_actions = n_actions
+
+    def choose_action(self, observation):
+        used_times = np.array(observation['last_used_times'])
+        max_idx = np.argmax(used_times)
+        if max_idx < 0 or max_idx > self.n_actions:
+            raise ValueError("MruAgent: Error index %d" % max_idx)
+        return max_idx
+    def store_transition(self, s, a, r, s_):
+        pass
+    def learn(self):
+        pass
+
+
+class LFUAgent:
+    def __init__(self, n_actions):
+        self.n_actions = n_actions
+
+    def choose_action(self, observation):
+        used_times = np.array(observation['last_used_times'])
+        max_idx = np.argmax(used_times)
+        if max_idx < 0 or max_idx > self.n_actions:
+            raise ValueError("LfuAgent: Error index %d" % max_idx)
+        return max_idx
+    def store_transition(self, s, a, r, s_):
+        pass
+    def learn(self):
+        pass
