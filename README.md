@@ -40,7 +40,7 @@ The modules are categorized into directory `agents` and `cache`. The `agents` fo
 
 We also provide a utility `gen_zipf.py` under `utils` to help generate simulated requests following Zipf distribution, as a supplement to `DataLoaderZipf`.
 
-## Experiments
+### Experiments
 
 We provide three scripts to recur the experimental results and one playground notebook for your futher experiments. Please follow the instructions below for your own purpose. Note that be cautious about the hyperparameters as they significantly affect the results.
 
