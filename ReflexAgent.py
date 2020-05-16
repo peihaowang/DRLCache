@@ -1,7 +1,8 @@
 import random
 import numpy as np
+from CacheAgent import ReflexAgent
 
-class RandomAgent:
+class RandomAgent(ReflexAgent):
     def __init__(self, n_actions):
         self.n_actions = n_actions
 
@@ -11,15 +12,8 @@ class RandomAgent:
 
     def choose_action(self, observation):
         return RandomAgent._choose_action(self.n_actions)
-    
-    def store_transition(self, s, a, r, s_):
-        pass
-    
-    def learn(self):
-        pass
 
-
-class LRUAgent:
+class LRUAgent(ReflexAgent):
     def __init__(self, n_actions):
         self.n_actions = n_actions
 
@@ -35,13 +29,7 @@ class LRUAgent:
             raise ValueError("LRUAgent: Error index %d" % min_idx)
         return min_idx
 
-    def store_transition(self, s, a, r, s_):
-        pass
-
-    def learn(self):
-        pass
-
-class MRUAgent:
+class MRUAgent(ReflexAgent):
     def __init__(self, n_actions):
         self.n_actions = n_actions
 
@@ -56,15 +44,8 @@ class MRUAgent:
         if max_idx < 0 or max_idx > self.n_actions:
             raise ValueError("MRUAgent: Error index %d" % max_idx)
         return max_idx
-    
-    def store_transition(self, s, a, r, s_):
-        pass
 
-    def learn(self):
-        pass
-
-
-class LFUAgent:
+class LFUAgent(ReflexAgent):
     def __init__(self, n_actions):
         self.n_actions = n_actions
         
@@ -79,9 +60,3 @@ class LFUAgent:
         if min_idx < 0 or min_idx > self.n_actions:
             raise ValueError("LFUAgent: Error index %d" % max_idx)
         return min_idx
-    
-    def store_transition(self, s, a, r, s_):
-        pass
-
-    def learn(self):
-        pass

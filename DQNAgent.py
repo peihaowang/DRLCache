@@ -1,28 +1,93 @@
-'''
-Agent class performing DQN algorithm.
-'''
+"""
+This code is partially from Morvan Zhou
+https://morvanzhou.github.io/tutorials/
 
-import .LearningAgent import LearningAgent
+We add neccessary decision procedures for our cache policy.
+
+Using:
+Tensorflow: 1.0
+"""
+
 import numpy as np
 import pandas as pd
 import tensorflow.compat.v1 as tf
+import matplotlib.pyplot as plt
 
-class DQNAgent(LearningAgent):
-    def __init__(self, n_actions, n_features, learning_rate=0.01, reward_decay=0.9, e_greedy=0.9, replace_target_iter=300,
-                 memory_size=500, batch_size=32, e_greedy_increment=None, output_graph=False):
-        super(DQNAgent, self).__init__(n_actions, learning_rate, reward_decay, e_greedy)
+from CacheAgent import LearnerAgent
+from ReflexAgent import RandomAgent, LRUAgent, LFUAgent
 
+np.random.seed(1)
+tf.set_random_seed(1)
+
+# disable eager execution
+tf.disable_eager_execution()
+
+# Deep Q Network
+class DQNAgent(LearnerAgent):
+    def __init__(
+        self,
+        n_actions,
+        n_features,
+        learning_rate=0.01,
+        reward_decay=0.9,
+        
+        e_greedy_min=(0.1, 0.1),
+        e_greedy_max=(0.1, 0.1),
+
+        # leave either e_greedy_init or e_greedy_decrement None to disable epsilon greedy
+        # only leave e_greedy_increment to disable dynamic bidirectional epsilon greedy
+        e_greedy_init=None,
+        e_greedy_increment=None,
+        e_greedy_decrement=None,
+
+        reward_threshold=None,
+        history_size=10,
+        dynamic_e_greedy_iter=5,
+        explore_mentor = 'LRU',
+        
+        replace_target_iter=300,
+        memory_size=500,
+        batch_size=32,
+
+        output_graph=False,
+        verbose=0
+    ):
+        self.n_actions = n_actions
+        self.n_features = n_features
+        self.lr = learning_rate
+        self.gamma = reward_decay
+        self.batch_size = batch_size
+
+        self.epsilons_min = e_greedy_min
+        self.epsilons_max = e_greedy_max
+        self.epsilons_increment = e_greedy_increment
+        self.epsilons_decrement = e_greedy_decrement
+        
+        self.epsilons = list(e_greedy_init)
+        if (e_greedy_init is None) or (e_greedy_decrement is None):
+            self.epsilons = list(self.epsilons_min)
+
+        self.explore_mentor = None
+        if explore_mentor.upper() == 'LRU':
+            self.explore_mentor = LRUAgent
+        elif explore_mentor.upper() == 'LFU':
+            self.explore_mentor = LFUAgent
+        
         self.replace_target_iter = replace_target_iter
         self.memory_size = memory_size
-        self.batch_size = batch_size
-        self.epsilon_max = e_greedy
-        self.epsilon_increment = e_greedy_increment
-        self.epsilon = 0 if e_greedy_increment != None else e_greedy
 
         # total learning step
         self.learn_step_counter = 0
+
         # initialize zero memory [s, a, r, s_]
         self.memory = np.zeros((self.memory_size, n_features * 2 + 2))
+        self.memory_counter = 0
+        
+        # initialize a history set for rewards
+        self.reward_history = []
+        self.history_size = history_size
+        self.dynamic_e_greedy_iter = dynamic_e_greedy_iter
+        self.reward_threshold = reward_threshold
 
         # consist of [target_net, evaluate_net]
         self._build_net()
@@ -39,6 +104,8 @@ class DQNAgent(LearningAgent):
 
         self.sess.run(tf.global_variables_initializer())
         self.cost_his = []
+        
+        self.verbose = verbose
 
     def _build_net(self):
         # ------------------ build evaluate_net ------------------
@@ -46,8 +113,8 @@ class DQNAgent(LearningAgent):
         self.q_target = tf.placeholder(tf.float32, [None, self.n_actions], name='Q_target')  # for calculating loss
         with tf.variable_scope('eval_net'):
             # c_names(collections_names) are the collections to store variables
-            c_names, n_l1, w_initializer, b_initializer = \
-                ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES], 10, \
+            c_names, n_l1, n_l2, w_initializer, b_initializer = \
+                ['eval_net_params', tf.GraphKeys.GLOBAL_VARIABLES], 64, 32, \
                 tf.random_normal_initializer(0., 0.3), tf.constant_initializer(0.1)  # config of layers
 
             # first layer. collections is used later when assign to target net
@@ -58,9 +125,15 @@ class DQNAgent(LearningAgent):
 
             # second layer. collections is used later when assign to target net
             with tf.variable_scope('l2'):
-                w2 = tf.get_variable('w2', [n_l1, self.n_actions], initializer=w_initializer, collections=c_names)
-                b2 = tf.get_variable('b2', [1, self.n_actions], initializer=b_initializer, collections=c_names)
-                self.q_eval = tf.matmul(l1, w2) + b2
+                w2 = tf.get_variable('w2', [n_l1, n_l2], initializer=w_initializer, collections=c_names)
+                b2 = tf.get_variable('b2', [1, n_l2], initializer=b_initializer, collections=c_names)
+                l2 = tf.nn.relu(tf.matmul(l1, w2) + b2)
+
+            # output layer. collections is used later when assign to target net
+            with tf.variable_scope('l3'):
+                w3 = tf.get_variable('w3', [n_l2, self.n_actions], initializer=w_initializer, collections=c_names)
+                b3 = tf.get_variable('b3', [1, self.n_actions], initializer=b_initializer, collections=c_names)
+                self.q_eval = tf.matmul(l2, w3) + b3
 
         with tf.variable_scope('loss'):
             self.loss = tf.reduce_mean(tf.squared_difference(self.q_target, self.q_eval))
@@ -81,41 +154,58 @@ class DQNAgent(LearningAgent):
 
             # second layer. collections is used later when assign to target net
             with tf.variable_scope('l2'):
-                w2 = tf.get_variable('w2', [n_l1, self.n_actions], initializer=w_initializer, collections=c_names)
-                b2 = tf.get_variable('b2', [1, self.n_actions], initializer=b_initializer, collections=c_names)
-                self.q_next = tf.matmul(l1, w2) + b2
+                w2 = tf.get_variable('w2', [n_l1, n_l2], initializer=w_initializer, collections=c_names)
+                b2 = tf.get_variable('b2', [1, n_l2], initializer=b_initializer, collections=c_names)
+                l2 = tf.nn.relu(tf.matmul(l1, w2) + b2)
+
+            # output layer. collections is used later when assign to target net
+            with tf.variable_scope('32'):
+                w3 = tf.get_variable('w2', [n_l2, self.n_actions], initializer=w_initializer, collections=c_names)
+                b3 = tf.get_variable('b2', [1, self.n_actions], initializer=b_initializer, collections=c_names)
+                self.q_next = tf.matmul(l2, w3) + b3
 
     def store_transition(self, s, a, r, s_):
-        if not hasattr(self, 'memory_counter'):
-            self.memory_counter = 0
-
         s, s_ = s['features'], s_['features']
         transition = np.hstack((s, [a, r], s_))
 
         # replace the old memory with new memory
         index = self.memory_counter % self.memory_size
         self.memory[index, :] = transition
-
         self.memory_counter += 1
+        
+        # Record reward
+        if len(self.reward_history) == self.history_size:
+            self.reward_history.pop(0)
+        self.reward_history.append(r)
 
     def choose_action(self, observation):
-        # to have batch dimension when feed into tf placeholder
-        observation= observation['features']
-        observation = observation[np.newaxis, :]
+        # draw probability sample
+        coin = np.random.uniform()
+        if coin < self.epsilons[0]:
+            action = RandomAgent._choose_action(self.n_actions)
+        elif self.epsilons[0] <= coin and coin < self.epsilons[0] + self.epsilons[1]:
+            action = self.explore_mentor._choose_action(observation)
+        else:
+            observation = observation['features']
+            # to have batch dimension when feed into tf placeholder
+            observation = observation[np.newaxis, :]
 
-        if np.random.uniform() < self.epsilon:
             # forward feed the observation and get q value for every actions
             actions_value = self.sess.run(self.q_eval, feed_dict={self.s: observation})
             action = np.argmax(actions_value)
-        else:
-            action = np.random.randint(0, self.n_actions)
+            
+        if action < 0 or action > self.n_actions:
+            raise ValueError("DQNAgent: Error index %d" % action)
+            
         return action
 
     def learn(self):
         # check to replace target parameters
         if self.learn_step_counter % self.replace_target_iter == 0:
             self.sess.run(self.replace_target_op)
-            print('\ntarget_params_replaced\n')
+            # verbose
+            if self.verbose >= 1:
+                print('Target DQN params replaced')
 
         # sample batch memory from all memory
         if self.memory_counter > self.memory_size:
@@ -168,16 +258,47 @@ class DQNAgent(LearningAgent):
 
         # train eval network
         _, self.cost = self.sess.run([self._train_op, self.loss],
-                                     feed_dict={self.s: batch_memory[:, :self.n_features],
-                                                self.q_target: q_target})
+            feed_dict={self.s: batch_memory[:, :self.n_features], self.q_target: q_target}
+        )
         self.cost_his.append(self.cost)
+        # verbose                    
+        if (self.verbose == 2 and self.learn_step_counter % 100 == 0) or \
+            (self.verbose >= 3 and self.learn_step_counter % 20 == 0):
+            print("Step=%d: Cost=%d" % (self.learn_step_counter, self.cost))
 
-        # increasing epsilon
-        self.epsilon = self.epsilon + self.epsilon_increment if self.epsilon < self.epsilon_max else self.epsilon_max
+        # increasing or decreasing epsilons
+        if self.learn_step_counter % self.dynamic_e_greedy_iter == 0:
+
+            # if we have e-greedy?
+            if self.epsilons_decrement is not None:
+                # dynamic bidirectional e-greedy
+                if self.epsilons_increment is not None:
+                    rho = np.median(np.array(self.reward_history))
+                    if rho >= self.reward_threshold:
+                        self.epsilons[0] -= self.epsilons_decrement[0]
+                        self.epsilons[1] -= self.epsilons_decrement[1]
+                        # verbose
+                        if self.verbose >= 3:
+                            print("Eps down: rho=%f, e1=%d, e2=%f" % (rho, self.epsilons[0], self.epsilons[1]))
+                    else:
+                        self.epsilons[0] += self.epsilons_increment[0]
+                        self.epsilons[1] += self.epsilons_increment[1]
+                        # verbose                    
+                        if self.verbose >= 3:
+                            print("Eps up: rho=%f, e1=%d, e2=%f" % (rho, self.epsilons[0], self.epsilons[1]))
+                # traditional e-greedy
+                else:
+                    self.epsilons[0] -= self.epsilons_decrement[0]
+                    self.epsilons[1] -= self.epsilons_decrement[1]
+
+            # enforce upper bound and lower bound
+            truncate = lambda x, lower, upper: min(max(x, lower), upper)
+            self.epsilons[0] = truncate(self.epsilons[0], self.epsilons_min[0], self.epsilons_max[0])
+            self.epsilons[1] = truncate(self.epsilons[1], self.epsilons_min[1], self.epsilons_max[1])
+
         self.learn_step_counter += 1
 
     def plot_cost(self):
-        import matplotlib.pyplot as plt
         plt.plot(np.arange(len(self.cost_his)), self.cost_his)
         plt.ylabel('Cost')
         plt.xlabel('training steps')

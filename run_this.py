@@ -1,68 +1,104 @@
 from Cache import Cache
-from DQN import DeepQNetwork
-from ReflexAgent import RandomAgent, LRUAgent
+from CacheAgent import *
+from DQNAgent import DQNAgent
+from ReflexAgent import *
+from DataLoader import DataLoaderPintos
 
 if __name__ == "__main__":
-    # cache
-#     env = Cache(["data2.0/zipf2.csv"], 50, allow_skip=False)
-    # "data2.0/filesys/base/syn-read.csv", "data2.0/filesys/extended/dir-vine.csv"
-    env = Cache(["data2.0/filesys/base/syn-read.csv"], 5, allow_skip=False)
-    # env = Cache(["data2.0/filesys/extended/dir-mk-tree.csv"], 5, allow_skip=False)
-    # env = Cache(["data2.0/filesys/extended/dir-vine.csv"], 50, allow_skip=False)
-    # env = Cache(["data2.0/filesys/extended/grow-create-persistence.csv"], 5, allow_skip=False)
-    # env = Cache(["data2.0/zipf.csv"], 5, allow_skip=False)
-    RL = DeepQNetwork(env.n_actions, env.n_features,
-        learning_rate=0.01,
-        reward_decay=0.9,
+    # disk activities
+    dataloader = DataLoaderPintos(["data2.0/filesys/base/syn-read.csv"])
+    
+    sizes = [5, 25, 50, 100, 300]
+    for cache_size in sizes:
+        # cache
+        env = Cache(dataloader, cache_size
+            , feature_selection=('Base',)
+            , reward_params = dict(name='our', alpha=0.5, psi=10, mu=1, beta=0.3)
+            , allow_skip=False
+        )
         
-        # Epsilon greedy
-        e_greedy_min=(0.0, 0.1),
-        e_greedy_max=(0.5, 0.5),
-        e_greedy_init=(0.2, 0.8),
-        e_greedy_increment=(0.005, 0.01),
-        e_greedy_decrement=(0.005, 0.001),
-        e_greedy_threshold=50,
-        explore_mentor = 'LRU',
+        # agents
+        agents = {}
+        agents['DQN'] = DQNAgent(env.n_actions, env.n_features,
+            learning_rate=0.01,
+            reward_decay=0.9,
 
-        replace_target_iter=100,
-        memory_size=10000,
-        history_size=50,
-        batch_size=128
-        # output_graph=True
-    )
-#     RL = RandomAgent(env.n_actions)
+            # Epsilon greedy
+            e_greedy_min=(0.0, 0.1),
+            e_greedy_max=(0.2, 0.8),
+            e_greedy_init=(0.1, 0.5),
+            e_greedy_increment=(0.005, 0.01),
+            e_greedy_decrement=(0.005, 0.001),
 
-    RL = LRUAgent(env.n_actions)
-    step = 0
-    for episode in range(100):
-        # initial observation
-        observation = env.reset()
+            history_size=50,
+            dynamic_e_greedy_iter=25,
+            reward_threshold=3,
+            explore_mentor = 'LRU',
 
-        while True:
-            # RL choose action based on observation
-            action = RL.choose_action(observation)
+            replace_target_iter=100,
+            memory_size=10000,
+            batch_size=128,
 
-            # RL take action and get next observation and reward
-            observation_, reward = env.step(action)
-
-            # break while loop when end of this episode
-            if env.hasDone():
-                break
-
-            RL.store_transition(observation, action, reward, observation_)
-
-            if (step > 20) and (step % 1 == 0):
-                RL.learn()
-
-            # swap observation
-            observation = observation_
+            output_graph=False,
+            verbose=0
+        )
+        agents['Random'] = RandomAgent(env.n_actions)
+        agents['LRU'] = LRUAgent(env.n_actions)
+        agents['LFU'] = LFUAgent(env.n_actions)
+        agents['MRU'] = MRUAgent(env.n_actions)
+    
+        for (name, agent) in agents.items():
+            print("=================== %s ====================" % name)
+            step = 0
+            miss_rates = []    # record miss rate for every episode
             
-            if step % 100 == 0:
+            # determine how many episodes to proceed
+            # 100 for learning agents, 20 for random agents
+            # 1 for other agents because their miss rates are invariant
+            if isinstance(agent, LearnerAgent):
+                episodes = 5
+            elif isinstance(agent, RandomAgent):
+                episodes = 5
+            else:
+                episodes = 1
+
+            for episode in range(episodes):
+                # initial observation
+                observation = env.reset()
+
+                while True:
+                    # agent choose action based on observation
+                    action = agent.choose_action(observation)
+
+                    # agent take action and get next observation and reward
+                    observation_, reward = env.step(action)
+
+                    # break while loop when end of this episode
+                    if env.hasDone():
+                        break
+
+                    agent.store_transition(observation, action, reward, observation_)
+
+                    if isinstance(agent, LearnerAgent) and (step > 20) and (step % 5 == 0):
+                        agent.learn()
+
+                    # swap observation
+                    observation = observation_
+
+                    if step % 100 == 0:
+                        mr = env.miss_rate()
+
+                    step += 1
+
+                # report after every episode
                 mr = env.miss_rate()
-                print("Episode=%d, Step=%d: NumAccesses=%d, NumHits=%d, MissRate=%f"
-                    % (episode, step, env.total_count, env.miss_count, mr)
+                print("Agent=%s, Size=%d, Episode=%d: Accesses=%d, Hits=%d, MissRate=%f"
+                    % (name, cache_size, episode, env.total_count, env.miss_count, mr)
                 )
+                miss_rates.append(mr)
 
-            step += 1
-
-    RL.plot_cost()
+            # summary
+            miss_rates = np.array(miss_rates)
+            print("Agent=%s, Size=%d: Mean=%f, Median=%f, Max=%f, Min=%f"
+                % (name, cache_size, np.mean(miss_rates), np.median(miss_rates), np.max(miss_rates), np.min(miss_rates))
+            )
