@@ -1,34 +1,30 @@
 
 import sys, os, random
 import numpy as np
-import pandas as pd
-
+from DataLoader import DataLoader
 
 class Cache(object):
-
-    # Elasped terms - short, middle and long
-    FEAT_TREMS = [10, 100]
-
-    def __init__(self, progs, cache_size, allow_skip=True, delay_reward=False, interval=0, boot=False):
-        # Basics
+    def __init__(self, requests, cache_size, terms = [10, 100, 1000], operations=None, allow_skip=True):
+        # If the cache allows skip eviction
+        # Network caching, disk caching do allow skipping eviction and grab resource directly.
+        # However, cache between CPU and memory requires every accessed data to be cached beforehand.
         self.allow_skip = allow_skip
-        self.delay_reward = delay_reward    # Only for policy-based
 
         # Counters
         self.total_count = 0
         self.miss_count = 0
         self.evict_count = 0
 
-        # Requests
-        self.requests = []
-        self.operations = []
-        if isinstance(progs, str): progs = [progs]
-        for prog in progs:
-            df = pd.read_csv(prog, header=0)
-            if not boot: df = df.loc[df['boot/exec'] == 1, :]
-            self.requests += list(df['blocksector'])
-            self.operations += list(df['read/write'])
-
+        # Load requests
+        if isinstance(requests, DataLoader):    # From data loader
+            self.requests = requests
+            self.operations = operations
+        else:                                   # From array
+            self.requests = requests
+            self.operations = operations
+            # random read/writes
+            if self.operations is None:
+                self.operations = [random.randint(0, 1) for i in range(len(self.requests))]
         self.cur_index = -1
 
         if len(self.requests) <= cache_size:
@@ -36,6 +32,9 @@ class Cache(object):
 
         if len(self.requests) != len(self.operations):
             raise ValueError("Not every request is assigned with an operation.")
+        
+        # Elasped terms - short, middle and long
+        self.FEAT_TREMS = terms
 
         # Cache
         self.cache_size = cache_size
@@ -48,7 +47,7 @@ class Cache(object):
 
         # Action & feature information
         self.n_actions = self.cache_size + 1 if allow_skip else self.cache_size
-        self.n_features = (self.cache_size + 1) * len(Cache.FEAT_TREMS) + self.cache_size*0
+        self.n_features = (self.cache_size + 1) * len(self.FEAT_TREMS) + self.cache_size*0
 
     # Display the current cache state
     def display(self):
@@ -56,8 +55,6 @@ class Cache(object):
 
     # Return miss rate
     def miss_rate(self):
-#         print("%d / %d = %f" % (self.miss_count, self.total_count, self.miss_count / self.total_count))
-        # print("%f" % (self.miss_count / self.total_count))
         return self.miss_count / self.total_count
 
     def reset(self):
@@ -73,9 +70,6 @@ class Cache(object):
 
         slot_id = 0
         while slot_id < self.cache_size and self.cur_index < len(self.requests):
-#             if self.cur_index % 100 == 99:
-#                 self.miss_rate()
-
             request = self._current_request()
             if request not in self.slots:
                 self.miss_count += 1
@@ -173,8 +167,11 @@ class Cache(object):
         self.cur_index += 1
         while self.cur_index < len(self.requests):
             request = self._current_request()
-            self.resource_freq[request] = self.resource_freq.get(request, 0) + 1
+            if request not in self.resource_freq:
+                self.resource_freq[request] = 0
+            self.resource_freq[request] += 1
             self.total_count += 1
+            
             if request not in self.slots:
                 self.miss_count += 1
                 break
@@ -203,11 +200,9 @@ class Cache(object):
 
     # The number of requests on rc_id among last `term` requests.
     def _elapsed_requests(self, term, rc_id):
-#         start = self.cur_index + 1
         start = self.cur_index - term + 1
         if start < 0: start = 0
         end = self.cur_index + 1
-#         end = self.cur_index + term
         if end > len(self.requests): end = len(self.requests)
         return self.requests[start : end].count(rc_id)
 
@@ -225,10 +220,9 @@ class Cache(object):
         # i.e. the request times in short/middle/long term for each
         # cached resource and the currently requested resource.
 
-
         features = np.concatenate([
-            np.array([self._elapsed_requests(t, self._current_request()) for t in Cache.FEAT_TREMS])
-            , np.array([self._elapsed_requests(t, rc) for rc in self.slots for t in Cache.FEAT_TREMS])
+            np.array([self._elapsed_requests(t, self._current_request()) for t in self.FEAT_TREMS])
+            , np.array([self._elapsed_requests(t, rc) for rc in self.slots for t in self.FEAT_TREMS])
 
             # Uncomment to enable different features.
             # , np.array([self.used_times[i] for i in range(self.cache_size)])
@@ -242,6 +236,7 @@ class Cache(object):
             cache_state=self.slots.copy(),
             cached_times=self.cached_times.copy(),
             last_used_times=self.used_times.copy(),
+            total_use_frequency=[self.resource_freq.get(r, 0) for r in self.slots],
             access_bits=self.access_bits.copy(),
             dirty_bits=self.dirty_bits.copy()
         )

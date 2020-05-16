@@ -18,7 +18,6 @@ if __name__ == "__main__":
         p = 1 / np.power(ranks, param)
         p /= np.sum(p)
         # Draw samples
-#         requests = np.random.zipf(1.3, num_samples)
         requests = np.random.choice(files, size=num_samples, p=p)
         operations = np.full_like(requests, 0)
         executions = np.full_like(requests, 1)

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-We adopt a learning-based method to cache replacement strategy, aiming to improve the miss rate of existing traditional cache replacement policies. The main idea of modeling is to regard the strategy as a MDP so that we can employ DRL to learn how to make decision. We refer to Zhong et al. and design a similar MDP model. The learning backbone, however, is value-based DQN. Our main effort is to use short-term reward to optimize the long term miss rate, and further adopt the network content caching system to file system, testing the DRL agent with realistic file accesses.
+We adopt a learning-based method to cache replacement strategy, aiming to improve the miss rate of existing traditional cache replacement policies. The main idea of modeling is to regard the strategy as a MDP so that we can employ DRL to learn how to make decision. We refer to Zhong et al. and design a similar MDP model. The learning backbone, however, is value-based DQN. Our main effort is to use short-term reward to optimize the long term miss rate, and further adopt the network content caching system to file system, testing the DRL agent with real-time disk activities.
 
 In this work, in addition to the implementation code, we also prepared a piece of [slides](https://peihaowang.github.io/archive/Wang_DRL_Cache_2020_slides.pdf) and detailed [report](https://peihaowang.github.io/archive/Wang_DRL_Cache_2020_report.pdf).
 
@@ -31,13 +31,13 @@ Note that this repo has not been well-organized yet. Please follow the instructi
 
 ## Dataset
 
-The real data are collected via [Pintos](https://web.stanford.edu/class/cs140/projects/pintos/pintos_1.html) system. We inserted a piece of tracking code into the kernel and collect the disk sector accesses while running the systems in real-time. The dataset will be released here soon.
+The real-time data were collected via [Pintos](https://web.stanford.edu/class/cs140/projects/pintos/pintos_1.html) system. We inserted a piece of tracking code into the kernel and collect disk activities while running the systems in real-time. The dataset will be released here soon.
 
 ## Acknowledgment
 
 The code for DQN was adapted from [Morvan Zhou's tutorials](https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow).
 
-I also sincerely appreciate the great efforts paid by the two co-workers below. We three equally contribute to this project.
+I sincerely appreciate the great efforts by the two co-workers below. We three equally contribute to this project.
 
 1. [Yuehao Wang](https://github.com/yuehaowang)
 2. [Rui Wang](https://github.com/RioReal)
