@@ -1,15 +1,18 @@
-from Cache import Cache
-from CacheAgent import *
-from DQNAgent import DQNAgent
-from ReflexAgent import *
-from DataLoader import DataLoaderPintos
+from cache.Cache import Cache
+from agents.CacheAgent import *
+from agents.DQNAgent import DQNAgent
+from agents.ReflexAgent import *
+from cache.DataLoader import DataLoaderPintos
 
 if __name__ == "__main__":
     # disk activities
-    dataloader = DataLoaderPintos(["data2.0/filesys/base/syn-read.csv"])
+    dataloader = DataLoaderPintos(["data/zipf.csv"])
     
     sizes = [5, 25, 50, 100, 300]
     for cache_size in sizes:
+        
+        print("==================== Cache Size: %d ====================" % cache_size)
+
         # cache
         env = Cache(dataloader, cache_size
             , feature_selection=('Base',)
@@ -48,7 +51,9 @@ if __name__ == "__main__":
         agents['MRU'] = MRUAgent(env.n_actions)
     
         for (name, agent) in agents.items():
-            print("=================== %s ====================" % name)
+
+            print("-------------------- %s --------------------" % name)
+
             step = 0
             miss_rates = []    # record miss rate for every episode
             
@@ -56,9 +61,9 @@ if __name__ == "__main__":
             # 100 for learning agents, 20 for random agents
             # 1 for other agents because their miss rates are invariant
             if isinstance(agent, LearnerAgent):
-                episodes = 5
+                episodes = 100
             elif isinstance(agent, RandomAgent):
-                episodes = 5
+                episodes = 20
             else:
                 episodes = 1
 

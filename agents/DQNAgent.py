@@ -13,8 +13,8 @@ import pandas as pd
 import tensorflow.compat.v1 as tf
 import matplotlib.pyplot as plt
 
-from CacheAgent import LearnerAgent
-from ReflexAgent import RandomAgent, LRUAgent, LFUAgent
+from agents.CacheAgent import LearnerAgent
+from agents.ReflexAgent import RandomAgent, LRUAgent, LFUAgent
 
 np.random.seed(1)
 tf.set_random_seed(1)
@@ -108,6 +108,8 @@ class DQNAgent(LearnerAgent):
         self.verbose = verbose
 
     def _build_net(self):
+        # neccessary cleaning
+        tf.reset_default_graph()
         # ------------------ build evaluate_net ------------------
         self.s = tf.placeholder(tf.float32, [None, self.n_features], name='s')  # input
         self.q_target = tf.placeholder(tf.float32, [None, self.n_actions], name='Q_target')  # for calculating loss

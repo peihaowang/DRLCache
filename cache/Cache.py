@@ -1,6 +1,6 @@
 import sys, os, random
 import numpy as np
-from DataLoader import *
+from cache.DataLoader import *
                     
 class Cache(object):
     def __init__(self, requests, cache_size
@@ -31,7 +31,6 @@ class Cache(object):
         self.evict_count = 0
 
         # Load requests
-        print(type(requests))
         if isinstance(requests, DataLoader):   # From data loader
             self.requests = requests.get_requests()
             self.operations = requests.get_operations()

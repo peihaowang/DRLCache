@@ -1,6 +1,6 @@
 import random
 import numpy as np
-from CacheAgent import ReflexAgent
+from agents.CacheAgent import ReflexAgent
 
 class RandomAgent(ReflexAgent):
     def __init__(self, n_actions):

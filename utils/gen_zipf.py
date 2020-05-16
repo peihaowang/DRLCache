@@ -1,30 +1,40 @@
-
+import os, sys
 import numpy as np
 import pandas as pd
 import random
 
 if __name__ == "__main__":
-    num_files = 5000
-    num_samples = 10000
-    save_path = 'data2.0/zipf2.csv'
-    param = 1.3
+
+    if len(sys.argv) != 6:
+        print("Usage: %s <save_path> <num_resources> <num_samples> <zipf_param> <num_progs>" % sys.argv[0])
+        exit(0)
+
+    save_path = sys.argv[1]
+    num_files = int(sys.argv[2])
+    num_samples = int(sys.argv[3])
+    param = float(sys.argv[4])
+    num_progs = int(sys.argv[5])
 
     df = None
-    for i in range(100):
+    for i in range(num_progs):
         files = np.arange(num_files)
         # Random ranks. Note that it starts from 1.
         ranks = np.random.permutation(files) + 1
+
         # Distribution
-        p = 1 / np.power(ranks, param)
-        p /= np.sum(p)
+        pdf = 1 / np.power(ranks, param)
+        pdf /= np.sum(pdf)
+
         # Draw samples
-        requests = np.random.choice(files, size=num_samples, p=p)
+        requests = np.random.choice(files, size=num_samples, p=pdf)
         operations = np.full_like(requests, 0)
         executions = np.full_like(requests, 1)
+
         # Make dataframe and save .csv
         tmp = pd.DataFrame({'blocksector': requests, 'read/write': operations, 'boot/exec': executions})
         if df is None:
             df = tmp
         else:
             df = pd.concat((df, tmp), axis=0)
+    # Save
     df.to_csv(save_path, index=False, header=True)

@@ -1,8 +1,8 @@
-from Cache import Cache
-from CacheAgent import *
-from DQNAgent import DQNAgent
-from ReflexAgent import *
-from DataLoader import DataLoaderPintos
+from cache.Cache import Cache
+from agents.CacheAgent import *
+from agents.DQNAgent import DQNAgent
+from agents.ReflexAgent import *
+from cache.DataLoader import DataLoaderPintos
 
 if __name__ == "__main__":
     # cache
@@ -44,7 +44,9 @@ if __name__ == "__main__":
     agents['MRU'] = MRUAgent(env.n_actions)
 
     for (name, agent) in agents.items():
-        print("=================== %s ====================" % name)
+
+        print("-------------------- %s --------------------" % name)
+
         step = 0
         episodes = 100 if isinstance(agent, LearnerAgent) else 1
         for episode in range(episodes):
@@ -72,7 +74,7 @@ if __name__ == "__main__":
 
                 if step % 100 == 0:
                     mr = env.miss_rate()
-                    print("Agent=%s, Episode=%d, Step=%d: Accesses=%d, Hits=%d, MissRate=%f"
+                    print("Agent=%s, Episode=%d, Step=%d: Accesses=%d, Misses=%d, MissRate=%f"
                         % (name, episode, step, env.total_count, env.miss_count, mr)
                     )
 
