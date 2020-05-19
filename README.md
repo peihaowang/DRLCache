@@ -58,9 +58,11 @@ We provide three scripts to recur the experimental results and one playground no
 
 The real-time data were collected via [Pintos](https://web.stanford.edu/class/cs140/projects/pintos/pintos_1.html) system. We inserted a piece of tracking code into the kernel and collect disk activities while running the systems in real-time.
 
-Now you can follow this [link](https://forms.gle/nvwiYurcadvAnUQV9) to download our *Pintos Disk Activity (PDA-159)* Dataset.
+The entire dataset contains 159 disk activity records for 159 running program instances. Each record is saved as `.csv` file, where the first column with header `blocksector` suggests the access sequence to block sectors, the second column with header `read/write` records the access operation(read or write), and the last column with header `boot/exec` indicates whether this disk access is to load the running program.
 
-**We prohibit any forms of redistribution, including but not limited to uploading to online storage, sharing this link, and copying to others.**
+Now you can follow this link and fill out our application form to download [*Pintos Disk Activity (PDA-159)* Dataset](https://forms.gle/nvwiYurcadvAnUQV9).
+
+**Before downloading this dataset, please read our License Agreement carefully, provided in the application form above. We prohibit any forms of redistribution, including but not limited to uploading to online storage, sharing download link, and copying to others.**
 
 ## Acknowledgment
 
