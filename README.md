@@ -56,7 +56,11 @@ We provide three scripts to recur the experimental results and one playground no
 
 ## Dataset
 
-The real-time data were collected via [Pintos](https://web.stanford.edu/class/cs140/projects/pintos/pintos_1.html) system. We inserted a piece of tracking code into the kernel and collect disk activities while running the systems in real-time. The dataset will be released soon.
+The real-time data were collected via [Pintos](https://web.stanford.edu/class/cs140/projects/pintos/pintos_1.html) system. We inserted a piece of tracking code into the kernel and collect disk activities while running the systems in real-time.
+
+Now you can follow this [link](https://forms.gle/nvwiYurcadvAnUQV9) to download our *Pintos Disk Activity (PDA-159)* Dataset.
+
+**We prohibit any forms of redistribution, including but not limited to uploading to online storage, sharing this link, and copying to others.**
 
 ## Acknowledgment
 
