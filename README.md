@@ -46,7 +46,7 @@ We provide three scripts to recur the experimental results and one playground no
 
 * Before you can run the code, please prepare the data and set the correct path in the involved source files. Note that you may encounter the error that the synthetic Zipf records are missing, which means you should generate them on your own. Nevertheless, you may find the utility we mentioned above helpful.
 
-* To reproduce "Miss Rate vs. Cache Size", i.e., Figure 3 of Experiment 1, please run `run_miss_rate_vs_capacity.py`. You may need to fine-tune hyperparameters.
+* To reproduce "Miss Rate vs. Cache Capacity", i.e., Figure 3 of Experiment 1, please run `run_miss_rate_vs_capacity.py`. You may need to fine-tune hyperparameters.
 
 * To reproduce "Miss Rate vs. Time", i.e., Figure 4 of Experiment 1, please run `run_miss_rate_vs_time.py`. You may also need to fine-tune hyperparameters.
 
