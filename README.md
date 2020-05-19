@@ -46,17 +46,17 @@ We provide three scripts to recur the experimental results and one playground no
 
 * Before you can run the code, please prepare the data and set the correct path in the involved source files. Note that you may encounter the error that the synthetic Zipf records are missing, which means you should generate them on your own. Nevertheless, you may find the utility we mentioned above helpful.
 
-* To reproduce "Miss Rate vs. Cache Size", i.e., Figure 3 of Experiment 1, please run `run_miss_rate_vs_cache_size.py`. You may need to fine-tune hyperparameters.
+* To reproduce "Miss Rate vs. Cache Size", i.e., Figure 3 of Experiment 1, please run `run_miss_rate_vs_capacity.py`. You may need to fine-tune hyperparameters.
 
 * To reproduce "Miss Rate vs. Time", i.e., Figure 4 of Experiment 1, please run `run_miss_rate_vs_time.py`. You may also need to fine-tune hyperparameters.
 
-* To reproduce the performance on real-time Pintos file system, i.e., Table 1 or Experiment 2, please run `run_pintos_filesys.py`. You may also need to fine-tune hyperparameters.
+* To reproduce the performance on real-time Pintos file system, i.e., Table 1 or Experiment 2, please run `run_pintos_filesys.py`. Beforehand you need to download our disk activity dataset.
 
 * We also provide code for other experiments in our code. You can refer to `playground.ipynb` for feature engineering and making ablation study on reward functions. Here, You can also implement your own learning and decision procedure.
 
 ## Dataset
 
-The real-time data were collected via [Pintos](https://web.stanford.edu/class/cs140/projects/pintos/pintos_1.html) system. We inserted a piece of tracking code into the kernel and collect disk activities while running the systems in real-time. The dataset will be released here soon.
+The real-time data were collected via [Pintos](https://web.stanford.edu/class/cs140/projects/pintos/pintos_1.html) system. We inserted a piece of tracking code into the kernel and collect disk activities while running the systems in real-time. The dataset will be released soon.
 
 ## Acknowledgment
 
