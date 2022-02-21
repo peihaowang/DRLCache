@@ -4,7 +4,7 @@
 
 We adopt a learning-based method to cache replacement strategy, aiming to improve the miss rate of existing traditional cache replacement policies. The main idea of modeling is to regard the strategy as a MDP so that we can employ DRL to learn how to make decision. We refer to Zhong et al. and design a similar MDP model. The learning backbone, however, is value-based DQN. Our main effort is to use short-term reward to optimize the long term miss rate, and further adopt the network content caching system to file system, testing the DRL agent with real-time disk activities.
 
-In this work, in addition to the implementation code, we also prepared a piece of [slides](https://peihaowang.github.io/archive/Wang_DRL_Cache_2020_slides.pdf) and detailed [report](https://peihaowang.github.io/archive/Wang_DRL_Cache_2020_report.pdf).
+In this work, in addition to the implementation code, we also prepared a piece of [slides](https://drive.google.com/file/d/1kB5jssn8GuALOutG2nNhJ8202YWGfy0v/view?usp=sharing) and detailed [report](https://drive.google.com/file/d/19JEAqM0SOilr4CTRdFDAroCmGoo9kKUv/view?usp=sharing).
 
 ![teaser](teaser.png)
 
